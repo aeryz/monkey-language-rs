@@ -99,6 +99,8 @@ impl<'a> Parser<'a> {
             .insert(TokenType::RPAREN, Parser::parse_grouped_expression);
         p.prefix_fns
             .insert(TokenType::IF, Parser::parse_if_expression);
+        p.prefix_fns
+            .insert(TokenType::FUNCTION, Parser::parse_function_literal);
 
         p.next_token();
         p.next_token();
@@ -151,6 +153,7 @@ impl<'a> Parser<'a> {
         let exp = self.parse_expression(Presedence::LOWEST);
 
         self.expect_peek(TokenType::RPAREN)?;
+
         exp
     }
 
@@ -169,8 +172,15 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_boolean(&mut self) -> Result<Expression<'a>, String> {
-        // TODO: Token Might not be true or false
-        Ok(Expression::Boolean(self.cur_token_is(TokenType::TRUE)))
+        if self.cur_token_is(TokenType::TRUE) {
+            return Ok(Expression::Boolean(true));
+        } else if self.cur_token_is(TokenType::FALSE) {
+            return Ok(Expression::Boolean(false));
+        }
+        Err(format!(
+            "Expected true of false, got: {}",
+            self.cur_token.literal
+        ))
     }
 
     pub fn parse_identifier(&mut self) -> Result<Expression<'a>, String> {
@@ -223,6 +233,43 @@ impl<'a> Parser<'a> {
         };
 
         Ok(Expression::IntegerLiteral(int_val))
+    }
+
+    pub fn parse_function_literal(&mut self) -> Result<Expression<'a>, String> {
+        self.expect_peek(TokenType::LPAREN)?;
+
+        let params = self.parse_function_parameters();
+
+        self.expect_peek(TokenType::LBRACE)?;
+
+        Ok(Expression::FunctionLiteral(
+            params?,
+            Box::new(self.parse_block_statement()?),
+        ))
+    }
+
+    pub fn parse_function_parameters(&mut self) -> Result<Vec<Box<Expression<'a>>>, String> {
+        let mut identifiers: Vec<Box<Expression<'a>>> = Vec::new();
+
+        if self.peek_token_is(&TokenType::RPAREN) {
+            self.next_token();
+            return Ok(identifiers);
+        }
+
+        self.next_token();
+
+        identifiers.push(Box::new(Expression::Identifier(self.cur_token.literal)));
+
+        while self.peek_token_is(&TokenType::COMMA) {
+            self.next_token();
+            self.next_token();
+
+            identifiers.push(Box::new(Expression::Identifier(self.cur_token.literal)));
+        }
+
+        self.expect_peek(TokenType::RPAREN)?;
+
+        Ok(identifiers)
     }
 
     // PARSING STATEMENTS
@@ -461,5 +508,31 @@ pub mod tests {
             assert_eq!(**lhs, Expression::IntegerLiteral(pt.1));
             assert_eq!(**rhs, Expression::IntegerLiteral(pt.3));
         }
+    }
+
+    #[test]
+    fn parse_function_literal() {
+        let input = "fn(x, y, z) { x + y + z; })";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(program.statements.len(), 1);
+
+        let (params, block) = match &program.statements[0] {
+            Statement::Expression(Expression::FunctionLiteral(p, b)) => (Some(p), Some(b)),
+            _ => (None, None),
+        };
+
+        let params = params.unwrap();
+        let block = match &**block.unwrap() {
+            Statement::Block(b) => Some(b),
+            _ => None,
+        };
+
+        assert_eq!(*params[0], Expression::Identifier("x"));
+        assert_eq!(*params[1], Expression::Identifier("y"));
+        assert_eq!(*params[2], Expression::Identifier("z"));
     }
 }

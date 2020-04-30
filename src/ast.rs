@@ -20,6 +20,7 @@ pub enum Expression<'a> {
         Box<Statement<'a>>,
         Option<Box<Statement<'a>>>,
     ),
+    FunctionLiteral(Vec<Box<Expression<'a>>>, Box<Statement<'a>>),
 }
 
 impl<'a> fmt::Display for Expression<'a> {
@@ -36,6 +37,13 @@ impl<'a> fmt::Display for Expression<'a> {
                 } else {
                     write!(f, "if {} {{{}}}", cond, cons)
                 }
+            }
+            Expression::FunctionLiteral(params, statement) => {
+                let mut out = String::from("fn (");
+                for p in params {
+                    out = format!("{}, {}", out, p);
+                }
+                write!(f, "{}) {{{}}}", out, statement)
             }
         }
     }
