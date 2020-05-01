@@ -21,6 +21,7 @@ pub enum Expression<'a> {
         Option<Box<Statement<'a>>>,
     ),
     FunctionLiteral(Vec<Box<Expression<'a>>>, Box<Statement<'a>>),
+    Call(Box<Expression<'a>>, Vec<Box<Expression<'a>>>),
 }
 
 impl<'a> fmt::Display for Expression<'a> {
@@ -40,10 +41,30 @@ impl<'a> fmt::Display for Expression<'a> {
             }
             Expression::FunctionLiteral(params, statement) => {
                 let mut out = String::from("fn (");
-                for p in params {
-                    out = format!("{}, {}", out, p);
+
+                if params.len() == 0 {
+                    return write!(f, "{})", out);
                 }
+
+                for p in params {
+                    out = format!("{}{}, ", out, p);
+                }
+                let out = (&out[0..out.len() - 2]).to_string();
                 write!(f, "{}) {{{}}}", out, statement)
+            }
+            Expression::Call(function, arguments) => {
+                let mut out = format!("{}(", *function);
+
+                if arguments.len() == 0 {
+                    return write!(f, "{})", out);
+                }
+
+                for a in arguments {
+                    out = format!("{}{}, ", out, a);
+                }
+
+                let out = (&out[0..out.len() - 2]).to_string();
+                write!(f, "{})", out)
             }
         }
     }
@@ -68,4 +89,14 @@ impl<'a> fmt::Display for Statement<'a> {
 
 pub struct Program<'a> {
     pub statements: Vec<Statement<'a>>,
+}
+
+impl<'a> fmt::Display for Program<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut out = String::new();
+        for s in &self.statements {
+            out = format!("{} {}", out, s);
+        }
+        write!(f, "{}", out)
+    }
 }

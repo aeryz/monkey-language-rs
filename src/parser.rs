@@ -63,7 +63,8 @@ impl<'a> Parser<'a> {
             TokenType::PLUS => Presedence::SUM,
             TokenType::MINUS => Presedence::SUM,
             TokenType::SLASH => Presedence::PRODUCT,
-            TokenType::ASTERISK => Presedence::PRODUCT
+            TokenType::ASTERISK => Presedence::PRODUCT,
+            TokenType::LPAREN => Presedence::CALL
         ];
 
         p.infix_fns
@@ -82,6 +83,8 @@ impl<'a> Parser<'a> {
             .insert(TokenType::LT, Parser::parse_infix_expression);
         p.infix_fns
             .insert(TokenType::GT, Parser::parse_infix_expression);
+        p.infix_fns
+            .insert(TokenType::LPAREN, Parser::parse_call_expression);
 
         p.prefix_fns
             .insert(TokenType::IDENT, Parser::parse_identifier);
@@ -118,6 +121,38 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
         program
+    }
+
+    pub fn parse_call_expression(
+        &mut self,
+        function: Expression<'a>,
+    ) -> Result<Expression<'a>, String> {
+        Ok(Expression::Call(
+            Box::new(function),
+            self.parse_call_arguments()?,
+        ))
+    }
+
+    pub fn parse_call_arguments(&mut self) -> Result<Vec<Box<Expression<'a>>>, String> {
+        let mut args = Vec::new();
+
+        if self.peek_token_is(&TokenType::RPAREN) {
+            self.next_token();
+            return Ok(args);
+        }
+
+        self.next_token();
+        args.push(Box::new(self.parse_expression(Presedence::LOWEST)?));
+
+        while self.peek_token_is(&TokenType::COMMA) {
+            self.next_token();
+            self.next_token();
+            args.push(Box::new(self.parse_expression(Presedence::LOWEST)?));
+        }
+
+        self.expect_peek(TokenType::RPAREN)?;
+
+        Ok(args)
     }
 
     pub fn parse_if_expression(&mut self) -> Result<Expression<'a>, String> {
@@ -218,7 +253,7 @@ impl<'a> Parser<'a> {
 
             self.next_token();
 
-            left_exp = infix_fn(self, left_exp).unwrap();
+            left_exp = infix_fn(self, left_exp)?;
         }
 
         Ok(left_exp)
@@ -304,35 +339,32 @@ impl<'a> Parser<'a> {
         Ok(stmt)
     }
     pub fn parse_return_statement(&mut self) -> Result<Statement<'a>, String> {
-        let stmt = Statement::Return(Expression::Identifier(""));
-
         self.next_token();
 
-        // TODO: Skipping expressions for now
-        while !self.cur_token_is(TokenType::SEMICOLON) {
+        let ret_val = self.parse_expression(Presedence::LOWEST)?;
+
+        if self.cur_token_is(TokenType::SEMICOLON) {
             self.next_token();
         }
-        Ok(stmt)
+        Ok(Statement::Return(ret_val))
     }
 
     pub fn parse_let_statement(&mut self) -> Result<Statement<'a>, String> {
-        let cur_token = self.cur_token.clone();
-
         self.expect_peek(TokenType::IDENT)?;
 
         let identifier = Expression::Identifier(self.cur_token.literal);
 
         self.expect_peek(TokenType::ASSIGN)?;
 
-        // TODO: Rest of the tokens are ignored for now
+        self.next_token();
 
-        let stmt = Statement::Let(identifier, Expression::Identifier("TODO"));
+        let value = self.parse_expression(Presedence::LOWEST)?;
 
-        while !self.cur_token_is(TokenType::SEMICOLON) {
+        if self.cur_token_is(TokenType::SEMICOLON) {
             self.next_token();
         }
 
-        Ok(stmt)
+        Ok(Statement::Let(identifier, value))
     }
 
     // HELPER FUNCTIONS
@@ -534,5 +566,27 @@ pub mod tests {
         assert_eq!(*params[0], Expression::Identifier("x"));
         assert_eq!(*params[1], Expression::Identifier("y"));
         assert_eq!(*params[2], Expression::Identifier("z"));
+    }
+
+    #[test]
+    fn parse_call_expression() {
+        let input = "test(1, 2 + 4, 3 * 7)";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(program.statements.len(), 1);
+
+        let (function, arguments) = match &program.statements[0] {
+            Statement::Expression(Expression::Call(f, a)) => (Some(f), Some(a)),
+            _ => (None, None),
+        };
+
+        let function = function.unwrap();
+        let arguments = arguments.unwrap();
+
+        assert_eq!(**function, Expression::Identifier("test"));
+        assert_eq!(*arguments[0], Expression::IntegerLiteral(1));
     }
 }
