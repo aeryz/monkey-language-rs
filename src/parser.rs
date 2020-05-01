@@ -343,7 +343,7 @@ impl<'a> Parser<'a> {
 
         let ret_val = self.parse_expression(Presedence::LOWEST)?;
 
-        if self.cur_token_is(TokenType::SEMICOLON) {
+        if self.peek_token_is(&TokenType::SEMICOLON) {
             self.next_token();
         }
         Ok(Statement::Return(ret_val))

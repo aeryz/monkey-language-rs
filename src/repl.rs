@@ -1,7 +1,9 @@
+use crate::evaluator::*;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::token::TokenType;
 use std::io::Write;
+use std::rc::Rc;
 
 const PROMPT: &str = ">>";
 
@@ -29,6 +31,11 @@ pub fn start() {
             print_parser_errors(parser.errors());
         }
 
-        println!("{}", program);
+        let eval = Evaluator::new();
+
+        match eval.eval_statements(&program.statements) {
+            Ok(obj) => println!("{}", obj),
+            Err(msg) => println!("ERROR: {}", msg),
+        }
     }
 }
