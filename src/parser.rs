@@ -26,25 +26,25 @@ pub enum Presedence {
     CALL,
 }
 
-type PrefixFn<'a> = fn(&mut Parser<'a>) -> Result<Expression<'a>, String>;
-type InfixFn<'a> = fn(&mut Parser<'a>, Expression<'a>) -> Result<Expression<'a>, String>;
+type PrefixFn = fn(&mut Parser) -> Result<Expression, String>;
+type InfixFn = fn(&mut Parser, Expression) -> Result<Expression, String>;
 
-pub struct Parser<'a> {
-    l: Lexer<'a>,
+pub struct Parser {
+    l: Lexer,
 
-    cur_token: Token<'a>,
-    peek_token: Token<'a>,
+    cur_token: Token,
+    peek_token: Token,
 
-    prefix_fns: HashMap<TokenType, PrefixFn<'a>>,
-    infix_fns: HashMap<TokenType, InfixFn<'a>>,
+    prefix_fns: HashMap<TokenType, PrefixFn>,
+    infix_fns: HashMap<TokenType, InfixFn>,
 
     precedences: HashMap<TokenType, Presedence>,
 
     errors: Vec<String>,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(l: Lexer<'a>) -> Self {
+impl Parser {
+    pub fn new(l: Lexer) -> Self {
         let mut p = Parser {
             l,
             cur_token: Token::empty(),
@@ -110,7 +110,7 @@ impl<'a> Parser<'a> {
         p
     }
 
-    pub fn parse_program(&mut self) -> Program<'a> {
+    pub fn parse_program(&mut self) -> Program {
         let mut program = Program { statements: vec![] };
 
         while self.cur_token.tok_type != TokenType::EOF {
@@ -123,17 +123,14 @@ impl<'a> Parser<'a> {
         program
     }
 
-    pub fn parse_call_expression(
-        &mut self,
-        function: Expression<'a>,
-    ) -> Result<Expression<'a>, String> {
+    pub fn parse_call_expression(&mut self, function: Expression) -> Result<Expression, String> {
         Ok(Expression::Call(
             Box::new(function),
             self.parse_call_arguments()?,
         ))
     }
 
-    pub fn parse_call_arguments(&mut self) -> Result<Vec<Box<Expression<'a>>>, String> {
+    pub fn parse_call_arguments(&mut self) -> Result<Vec<Box<Expression>>, String> {
         let mut args = Vec::new();
 
         if self.peek_token_is(&TokenType::RPAREN) {
@@ -155,7 +152,7 @@ impl<'a> Parser<'a> {
         Ok(args)
     }
 
-    pub fn parse_if_expression(&mut self) -> Result<Expression<'a>, String> {
+    pub fn parse_if_expression(&mut self) -> Result<Expression, String> {
         self.expect_peek(TokenType::LPAREN)?;
 
         self.next_token();
@@ -182,7 +179,7 @@ impl<'a> Parser<'a> {
         Ok(Expression::If(Box::new(cond), Box::new(consequence), None))
     }
 
-    pub fn parse_grouped_expression(&mut self) -> Result<Expression<'a>, String> {
+    pub fn parse_grouped_expression(&mut self) -> Result<Expression, String> {
         self.next_token();
 
         let exp = self.parse_expression(Presedence::LOWEST);
@@ -192,11 +189,8 @@ impl<'a> Parser<'a> {
         exp
     }
 
-    pub fn parse_infix_expression(
-        &mut self,
-        left: Expression<'a>,
-    ) -> Result<Expression<'a>, String> {
-        let literal = self.cur_token.literal;
+    pub fn parse_infix_expression(&mut self, left: Expression) -> Result<Expression, String> {
+        let literal = self.cur_token.literal.clone();
         let precedence = *self.cur_precedence();
         self.next_token();
         Ok(Expression::Infix(
@@ -206,7 +200,7 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    pub fn parse_boolean(&mut self) -> Result<Expression<'a>, String> {
+    pub fn parse_boolean(&mut self) -> Result<Expression, String> {
         if self.cur_token_is(TokenType::TRUE) {
             return Ok(Expression::Boolean(true));
         } else if self.cur_token_is(TokenType::FALSE) {
@@ -218,12 +212,12 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    pub fn parse_identifier(&mut self) -> Result<Expression<'a>, String> {
-        Ok(Expression::Identifier(self.cur_token.literal))
+    pub fn parse_identifier(&mut self) -> Result<Expression, String> {
+        Ok(Expression::Identifier(self.cur_token.literal.clone()))
     }
 
-    pub fn parse_prefix_expression(&mut self) -> Result<Expression<'a>, String> {
-        let operator = self.cur_token.literal;
+    pub fn parse_prefix_expression(&mut self) -> Result<Expression, String> {
+        let operator = self.cur_token.literal.clone();
 
         self.next_token();
 
@@ -233,7 +227,7 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    pub fn parse_expression(&mut self, p: Presedence) -> Result<Expression<'a>, String> {
+    pub fn parse_expression(&mut self, p: Presedence) -> Result<Expression, String> {
         let prefix_fn = match self.prefix_fns.get(&self.cur_token.tok_type) {
             Some(func) => func,
             None => {
@@ -259,7 +253,7 @@ impl<'a> Parser<'a> {
         Ok(left_exp)
     }
 
-    pub fn parse_integer_literal(&mut self) -> Result<Expression<'a>, String> {
+    pub fn parse_integer_literal(&mut self) -> Result<Expression, String> {
         let int_val = match self.cur_token.literal.parse::<i64>() {
             Ok(val) => val,
             Err(err) => {
@@ -270,7 +264,7 @@ impl<'a> Parser<'a> {
         Ok(Expression::IntegerLiteral(int_val))
     }
 
-    pub fn parse_function_literal(&mut self) -> Result<Expression<'a>, String> {
+    pub fn parse_function_literal(&mut self) -> Result<Expression, String> {
         self.expect_peek(TokenType::LPAREN)?;
 
         let params = self.parse_function_parameters();
@@ -283,8 +277,8 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    pub fn parse_function_parameters(&mut self) -> Result<Vec<Box<Expression<'a>>>, String> {
-        let mut identifiers: Vec<Box<Expression<'a>>> = Vec::new();
+    pub fn parse_function_parameters(&mut self) -> Result<Vec<Box<Expression>>, String> {
+        let mut identifiers: Vec<Box<Expression>> = Vec::new();
 
         if self.peek_token_is(&TokenType::RPAREN) {
             self.next_token();
@@ -293,13 +287,17 @@ impl<'a> Parser<'a> {
 
         self.next_token();
 
-        identifiers.push(Box::new(Expression::Identifier(self.cur_token.literal)));
+        identifiers.push(Box::new(Expression::Identifier(
+            self.cur_token.literal.clone(),
+        )));
 
         while self.peek_token_is(&TokenType::COMMA) {
             self.next_token();
             self.next_token();
 
-            identifiers.push(Box::new(Expression::Identifier(self.cur_token.literal)));
+            identifiers.push(Box::new(Expression::Identifier(
+                self.cur_token.literal.clone(),
+            )));
         }
 
         self.expect_peek(TokenType::RPAREN)?;
@@ -308,8 +306,8 @@ impl<'a> Parser<'a> {
     }
 
     // PARSING STATEMENTS
-    pub fn parse_block_statement(&mut self) -> Result<Statement<'a>, String> {
-        let mut stmts: Vec<Statement<'a>> = Vec::new();
+    pub fn parse_block_statement(&mut self) -> Result<Statement, String> {
+        let mut stmts: Vec<Statement> = Vec::new();
         self.next_token();
 
         while !self.cur_token_is(TokenType::RBRACE) && !self.cur_token_is(TokenType::EOF) {
@@ -321,7 +319,7 @@ impl<'a> Parser<'a> {
         Ok(Statement::Block(stmts))
     }
 
-    pub fn parse_statement(&mut self) -> Result<Statement<'a>, String> {
+    pub fn parse_statement(&mut self) -> Result<Statement, String> {
         match self.cur_token.tok_type {
             TokenType::LET => self.parse_let_statement(),
             TokenType::RETURN => self.parse_return_statement(),
@@ -329,7 +327,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_expression_statement(&mut self) -> Result<Statement<'a>, String> {
+    pub fn parse_expression_statement(&mut self) -> Result<Statement, String> {
         let stmt = Statement::Expression(self.parse_expression(Presedence::LOWEST)?);
 
         if self.peek_token_is(&TokenType::SEMICOLON) {
@@ -338,7 +336,7 @@ impl<'a> Parser<'a> {
 
         Ok(stmt)
     }
-    pub fn parse_return_statement(&mut self) -> Result<Statement<'a>, String> {
+    pub fn parse_return_statement(&mut self) -> Result<Statement, String> {
         self.next_token();
 
         let ret_val = self.parse_expression(Presedence::LOWEST)?;
@@ -349,10 +347,10 @@ impl<'a> Parser<'a> {
         Ok(Statement::Return(ret_val))
     }
 
-    pub fn parse_let_statement(&mut self) -> Result<Statement<'a>, String> {
+    pub fn parse_let_statement(&mut self) -> Result<Statement, String> {
         self.expect_peek(TokenType::IDENT)?;
 
-        let identifier = Expression::Identifier(self.cur_token.literal);
+        let identifier = Expression::Identifier(self.cur_token.literal.clone());
 
         self.expect_peek(TokenType::ASSIGN)?;
 
@@ -418,7 +416,8 @@ pub mod tests {
 
     #[test]
     fn parse_let_stmt() {
-        let input = "let x = 5;";
+        // TODO: unimplemented
+        let input = String::from("let x = 5;");
 
         let mut l = Lexer::new(input);
         let mut parser = Parser::new(l);
@@ -427,7 +426,7 @@ pub mod tests {
 
     #[test]
     fn parse_identifier_expression() {
-        let input = "foobar";
+        let input = String::from("foobar");
 
         let l = Lexer::new(input);
         let mut parser = Parser::new(l);
@@ -439,13 +438,13 @@ pub mod tests {
 
         assert_eq!(
             *stmt,
-            Statement::Expression(Expression::Identifier("foobar"))
+            Statement::Expression(Expression::Identifier(String::from("foobar")))
         );
     }
 
     #[test]
     fn parse_integer_expression() {
-        let input = "5;";
+        let input = String::from("5;");
 
         let l = Lexer::new(input);
         let mut parser = Parser::new(l);
@@ -460,7 +459,10 @@ pub mod tests {
 
     #[test]
     fn parse_prefix_statement() {
-        let prefix_tests = vec![("!5;", "!", 5), ("-15;", "-", 15)];
+        let prefix_tests = vec![
+            (String::from("!5;"), "!", 5),
+            (String::from("-15;"), "-", 15),
+        ];
         for pt in prefix_tests {
             let l = Lexer::new(pt.0);
             let mut p = Parser::new(l);
@@ -487,7 +489,7 @@ pub mod tests {
 
     #[test]
     fn parse_boolean() {
-        let bool_tests = vec![("true", true), ("false", false)];
+        let bool_tests = vec![(String::from("true"), true), (String::from("false"), false)];
 
         for bt in bool_tests {
             let lexer = Lexer::new(bt.0);
@@ -515,7 +517,7 @@ pub mod tests {
             ("5 != 5;", 5, "!=", 5),
         ];
         for pt in infix_tests {
-            let l = Lexer::new(pt.0);
+            let l = Lexer::new(String::from(pt.0));
             let mut p = Parser::new(l);
             let program = p.parse_program();
 
@@ -544,7 +546,7 @@ pub mod tests {
 
     #[test]
     fn parse_function_literal() {
-        let input = "fn(x, y, z) { x + y + z; })";
+        let input = String::from("fn(x, y, z) { x + y + z; })");
 
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
@@ -563,14 +565,14 @@ pub mod tests {
             _ => None,
         };
 
-        assert_eq!(*params[0], Expression::Identifier("x"));
-        assert_eq!(*params[1], Expression::Identifier("y"));
-        assert_eq!(*params[2], Expression::Identifier("z"));
+        assert_eq!(*params[0], Expression::Identifier("x".to_owned()));
+        assert_eq!(*params[1], Expression::Identifier("y".to_owned()));
+        assert_eq!(*params[2], Expression::Identifier("z".to_owned()));
     }
 
     #[test]
     fn parse_call_expression() {
-        let input = "test(1, 2 + 4, 3 * 7)";
+        let input = String::from("test(1, 2 + 4, 3 * 7)");
 
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
@@ -586,7 +588,7 @@ pub mod tests {
         let function = function.unwrap();
         let arguments = arguments.unwrap();
 
-        assert_eq!(**function, Expression::Identifier("test"));
+        assert_eq!(**function, Expression::Identifier("test".to_owned()));
         assert_eq!(*arguments[0], Expression::IntegerLiteral(1));
     }
 }

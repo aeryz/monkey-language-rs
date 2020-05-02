@@ -1,17 +1,15 @@
+use crate::ast::Statement;
+use crate::environment::Environment;
 use std::fmt;
-use std::rc::Rc;
 
-pub enum ObjectType {
-    Boolean,
-    Integer,
-}
-
+#[derive(Clone)]
 pub enum Object {
     Integer(i64),
     Boolean(bool),
-    Return(Rc<Object>),
+    Return(Box<Object>),
     Error(String),
     Null,
+    Function(Vec<String>, Box<Statement>, Environment),
 }
 
 impl fmt::Display for Object {
@@ -22,6 +20,15 @@ impl fmt::Display for Object {
             Object::Null => write!(f, "null"),
             Object::Return(obj) => write!(f, "{}", *obj),
             Object::Error(msg) => write!(f, "ERROR: {}", msg),
+            Object::Function(params, block, ..) => {
+                let mut out = String::from("fn (");
+
+                for p in params {
+                    out = format!("{}{}, ", out, p);
+                }
+
+                write!(f, "{}){{\n{}\n}}", &out[0..out.len() - 2], block)
+            }
         }
     }
 }

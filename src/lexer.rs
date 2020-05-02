@@ -1,25 +1,25 @@
 use crate::token::{Token, TokenType};
 
-pub struct Lexer<'input> {
-    pub input: &'input str,
+pub struct Lexer {
+    pub input: String,
     pub position: usize,
     pub read_position: usize,
     pub ch: Option<char>,
 }
 
-impl<'input> Lexer<'input> {
-    pub fn new(input: &'input str) -> Self {
+impl Lexer {
+    pub fn new(input: String) -> Self {
         let mut l = Lexer {
             input,
             position: 0,
             read_position: 0,
-            ch: None
+            ch: None,
         };
         l.read_char();
         l
     }
 
-    pub fn next_token(&mut self) -> Token<'input> {
+    pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
         let tok = match self.ch {
@@ -28,9 +28,9 @@ impl<'input> Lexer<'input> {
                 let tok: Token;
                 if let Some('=') = self.peek_char() {
                     self.read_char();
-                    tok = Token::new(TokenType::EQ, "==");
+                    tok = Token::new(TokenType::EQ, "==".to_owned());
                 } else {
-                    tok = Token::new(TokenType::ASSIGN, "=");
+                    tok = Token::new(TokenType::ASSIGN, "=".to_owned());
                 }
                 tok
             }
@@ -38,25 +38,25 @@ impl<'input> Lexer<'input> {
                 let tok: Token;
                 if let Some('=') = self.peek_char() {
                     self.read_char();
-                    tok = Token::new(TokenType::NOT_EQ, "!=");
+                    tok = Token::new(TokenType::NOT_EQ, "!=".to_owned());
                 } else {
-                    tok = Token::new(TokenType::BANG, "!");
+                    tok = Token::new(TokenType::BANG, "!".to_owned());
                 }
                 tok
             }
-            Some('+') => Token::new(TokenType::PLUS, "+"),
-            Some('-') => Token::new(TokenType::MINUS, "-"),
-            Some('/') => Token::new(TokenType::SLASH, "/"),
-            Some('*') => Token::new(TokenType::ASTERISK, "*"),
-            Some('<') => Token::new(TokenType::LT, "<"),
-            Some('>') => Token::new(TokenType::GT, ">"),
-            Some(';') => Token::new(TokenType::SEMICOLON, ";"),
-            Some(',') => Token::new(TokenType::COMMA, ","),
-            Some('{') => Token::new(TokenType::LBRACE, "{"),
-            Some('}') => Token::new(TokenType::RBRACE, "}"),
-            Some('(') => Token::new(TokenType::LPAREN, "("),
-            Some(')') => Token::new(TokenType::RPAREN, ")"),
-            None => Token::new(TokenType::EOF, ""),
+            Some('+') => Token::new(TokenType::PLUS, "+".to_owned()),
+            Some('-') => Token::new(TokenType::MINUS, "-".to_owned()),
+            Some('/') => Token::new(TokenType::SLASH, "/".to_owned()),
+            Some('*') => Token::new(TokenType::ASTERISK, "*".to_owned()),
+            Some('<') => Token::new(TokenType::LT, "<".to_owned()),
+            Some('>') => Token::new(TokenType::GT, ">".to_owned()),
+            Some(';') => Token::new(TokenType::SEMICOLON, ";".to_owned()),
+            Some(',') => Token::new(TokenType::COMMA, ",".to_owned()),
+            Some('{') => Token::new(TokenType::LBRACE, "{".to_owned()),
+            Some('}') => Token::new(TokenType::RBRACE, "}".to_owned()),
+            Some('(') => Token::new(TokenType::LPAREN, "(".to_owned()),
+            Some(')') => Token::new(TokenType::RPAREN, ")".to_owned()),
+            None => Token::new(TokenType::EOF, String::new()),
             Some(ch) => {
                 if Token::is_letter(ch) {
                     let identifier = self.read_identifier();
@@ -66,7 +66,7 @@ impl<'input> Lexer<'input> {
                 }
                 Token::new(
                     TokenType::ILLEGAL,
-                    &self.input[self.position..self.position + 1],
+                    String::from(&self.input[self.position..self.position + 1]),
                 )
             }
         };
@@ -94,7 +94,7 @@ impl<'input> Lexer<'input> {
         self.input.chars().nth(self.read_position)
     }
 
-    pub fn read_identifier(&mut self) -> &'input str {
+    pub fn read_identifier(&mut self) -> String {
         let position = self.position;
 
         while let Some(ch) = self.ch {
@@ -103,10 +103,10 @@ impl<'input> Lexer<'input> {
             }
             self.read_char();
         }
-        &self.input[position..self.position]
+        String::from(&self.input[position..self.position])
     }
 
-    pub fn read_number(&mut self) -> &'input str {
+    pub fn read_number(&mut self) -> String {
         let position = self.position;
 
         while let Some(ch) = self.ch {
@@ -115,6 +115,6 @@ impl<'input> Lexer<'input> {
             }
             self.read_char();
         }
-        &self.input[position..self.position]
+        String::from(&self.input[position..self.position])
     }
 }

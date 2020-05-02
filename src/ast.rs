@@ -1,30 +1,26 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
-pub enum Statement<'a> {
-    Let(Expression<'a>, Expression<'a>),
-    Return(Expression<'a>),
-    Expression(Expression<'a>),
-    Block(Vec<Statement<'a>>),
+#[derive(Debug, PartialEq, Clone)]
+pub enum Statement {
+    Let(Expression, Expression),
+    Return(Expression),
+    Expression(Expression),
+    Block(Vec<Statement>),
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Expression<'a> {
-    Identifier(&'a str),
+#[derive(Debug, PartialEq, Clone)]
+pub enum Expression {
+    Identifier(String),
     IntegerLiteral(i64),
-    Prefix(&'a str, Box<Expression<'a>>),
-    Infix(Box<Expression<'a>>, &'a str, Box<Expression<'a>>),
+    Prefix(String, Box<Expression>),
+    Infix(Box<Expression>, String, Box<Expression>),
     Boolean(bool),
-    If(
-        Box<Expression<'a>>,
-        Box<Statement<'a>>,
-        Option<Box<Statement<'a>>>,
-    ),
-    FunctionLiteral(Vec<Box<Expression<'a>>>, Box<Statement<'a>>),
-    Call(Box<Expression<'a>>, Vec<Box<Expression<'a>>>),
+    If(Box<Expression>, Box<Statement>, Option<Box<Statement>>),
+    FunctionLiteral(Vec<Box<Expression>>, Box<Statement>),
+    Call(Box<Expression>, Vec<Box<Expression>>),
 }
 
-impl<'a> fmt::Display for Expression<'a> {
+impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Expression::Identifier(val) => write!(f, "{}", val),
@@ -70,7 +66,7 @@ impl<'a> fmt::Display for Expression<'a> {
     }
 }
 
-impl<'a> fmt::Display for Statement<'a> {
+impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Statement::Let(name, val) => write!(f, "let {} = {};", name, val),
@@ -87,11 +83,11 @@ impl<'a> fmt::Display for Statement<'a> {
     }
 }
 
-pub struct Program<'a> {
-    pub statements: Vec<Statement<'a>>,
+pub struct Program {
+    pub statements: Vec<Statement>,
 }
 
-impl<'a> fmt::Display for Program<'a> {
+impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut out = String::new();
         for s in &self.statements {

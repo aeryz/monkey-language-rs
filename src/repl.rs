@@ -14,6 +14,7 @@ fn print_parser_errors(errors: &Vec<String>) {
 }
 
 pub fn start() {
+    let mut eval = Evaluator::new();
     loop {
         print!("{} ", PROMPT);
         std::io::stdout().flush().expect("Flush error.");
@@ -23,17 +24,15 @@ pub fn start() {
             .read_line(&mut buffer)
             .expect("Unexpected error occured.");
 
-        let l = Lexer::new(&buffer);
+        let l = Lexer::new(buffer);
         let mut parser = Parser::new(l);
-        let program = parser.parse_program();
+        let mut program = parser.parse_program();
 
         if parser.errors().len() != 0 {
             print_parser_errors(parser.errors());
         }
 
-        let eval = Evaluator::new();
-
-        match eval.eval_statements(&program.statements) {
+        match eval.eval_statements(program.statements) {
             Ok(obj) => println!("{}", obj),
             Err(msg) => println!("ERROR: {}", msg),
         }

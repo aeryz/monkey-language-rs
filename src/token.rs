@@ -37,35 +37,35 @@ pub enum TokenType {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Token<'a> {
+pub struct Token {
     pub tok_type: TokenType,
-    pub literal: &'a str,
+    pub literal: String,
 }
 
-impl<'a> Clone for Token<'a> {
+impl Clone for Token {
     fn clone(&self) -> Self {
         Token {
             tok_type: self.tok_type.clone(),
-            literal: self.literal,
+            literal: self.literal.clone(),
         }
     }
 }
 
-impl<'a> Token<'a> {
-    pub fn new(tok_type: TokenType, literal: &'a str) -> Self {
+impl Token {
+    pub fn new(tok_type: TokenType, literal: String) -> Self {
         Token { tok_type, literal }
     }
 
     pub fn empty() -> Self {
         Token {
             tok_type: TokenType::EOF,
-            literal: "",
+            literal: String::new(),
         }
     }
 
-    pub fn from_ident(identifier: &'a str) -> Self {
+    pub fn from_ident(identifier: String) -> Self {
         Token {
-            tok_type: Token::str_to_ident(identifier),
+            tok_type: Token::str_to_ident(identifier.as_str()),
             literal: identifier,
         }
     }
